@@ -205,3 +205,17 @@ func BenchmarkKeys(b *testing.B) {
 		m.Keys()
 	}
 }
+
+func BenchmarkIteratorKeys(b *testing.B) {
+	m := New(32)
+
+	// Insert 100 elements.
+	for i := 0; i < 10000; i++ {
+		m.Set(strconv.Itoa(i), Animal{strconv.Itoa(i)})
+	}
+	for i := 0; i < b.N; i++ {
+		for range m.IterKeys() {
+
+		}
+	}
+}
