@@ -4,7 +4,7 @@ import "testing"
 import "strconv"
 
 func BenchmarkItems(b *testing.B) {
-	m := New()
+	m := New(32)
 
 	// Insert 100 elements.
 	for i := 0; i < 10000; i++ {
@@ -15,8 +15,22 @@ func BenchmarkItems(b *testing.B) {
 	}
 }
 
+func BenchmarkIterator(b *testing.B) {
+	m := New(32)
+
+	// Insert 100 elements.
+	for i := 0; i < 10000; i++ {
+		m.Set(strconv.Itoa(i), Animal{strconv.Itoa(i)})
+	}
+	for i := 0; i < b.N; i++ {
+		for range m.Iter() {
+
+		}
+	}
+}
+
 func BenchmarkMarshalJson(b *testing.B) {
-	m := New()
+	m := New(32)
 
 	// Insert 100 elements.
 	for i := 0; i < 10000; i++ {
@@ -34,7 +48,7 @@ func BenchmarkStrconv(b *testing.B) {
 }
 
 func BenchmarkSingleInsertAbsent(b *testing.B) {
-	m := New()
+	m := New(32)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		m.Set(strconv.Itoa(i), "value")
@@ -42,7 +56,7 @@ func BenchmarkSingleInsertAbsent(b *testing.B) {
 }
 
 func BenchmarkSingleInsertPresent(b *testing.B) {
-	m := New()
+	m := New(32)
 	m.Set("key", "value")
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -50,8 +64,8 @@ func BenchmarkSingleInsertPresent(b *testing.B) {
 	}
 }
 
-func benchmarkMultiInsertDifferent(b *testing.B) {
-	m := New()
+func benchmarkMultiInsertDifferent(b *testing.B, shardCount int) {
+	m := New(shardCount)
 	finished := make(chan struct{}, b.N)
 	_, set := GetSet(m, finished)
 	b.ResetTimer()
@@ -77,7 +91,7 @@ func BenchmarkMultiInsertDifferent_256_Shard(b *testing.B) {
 }
 
 func BenchmarkMultiInsertSame(b *testing.B) {
-	m := New()
+	m := New(32)
 	finished := make(chan struct{}, b.N)
 	_, set := GetSet(m, finished)
 	m.Set("key", "value")
@@ -91,7 +105,7 @@ func BenchmarkMultiInsertSame(b *testing.B) {
 }
 
 func BenchmarkMultiGetSame(b *testing.B) {
-	m := New()
+	m := New(32)
 	finished := make(chan struct{}, b.N)
 	get, _ := GetSet(m, finished)
 	m.Set("key", "value")
@@ -104,8 +118,8 @@ func BenchmarkMultiGetSame(b *testing.B) {
 	}
 }
 
-func benchmarkMultiGetSetDifferent(b *testing.B) {
-	m := New()
+func benchmarkMultiGetSetDifferent(b *testing.B, shardCount int) {
+	m := New(shardCount)
 	finished := make(chan struct{}, 2*b.N)
 	get, set := GetSet(m, finished)
 	m.Set("-1", "value")
@@ -132,8 +146,8 @@ func BenchmarkMultiGetSetDifferent_256_Shard(b *testing.B) {
 	runWithShards(benchmarkMultiGetSetDifferent, b, 256)
 }
 
-func benchmarkMultiGetSetBlock(b *testing.B) {
-	m := New()
+func benchmarkMultiGetSetBlock(b *testing.B, shardCount int) {
+	m := New(shardCount)
 	finished := make(chan struct{}, 2*b.N)
 	get, set := GetSet(m, finished)
 	for i := 0; i < b.N; i++ {
@@ -162,7 +176,7 @@ func BenchmarkMultiGetSetBlock_256_Shard(b *testing.B) {
 	runWithShards(benchmarkMultiGetSetBlock, b, 256)
 }
 
-func GetSet(m ConcurrentMap, finished chan struct{}) (set func(key, value string), get func(key, value string)) {
+func GetSet(m ConcurrentMap, finished chan struct{}) (get func(key, value string), set func(key, value string)) {
 	return func(key, value string) {
 			for i := 0; i < 10; i++ {
 				m.Get(key)
@@ -176,15 +190,12 @@ func GetSet(m ConcurrentMap, finished chan struct{}) (set func(key, value string
 		}
 }
 
-func runWithShards(bench func(b *testing.B), b *testing.B, shardsCount int) {
-	oldShardsCount := SHARD_COUNT
-	SHARD_COUNT = shardsCount
-	bench(b)
-	SHARD_COUNT = oldShardsCount
+func runWithShards(bench func(b *testing.B, shardCount int), b *testing.B, shardsCount int) {
+	bench(b, shardsCount)
 }
 
 func BenchmarkKeys(b *testing.B) {
-	m := New()
+	m := New(32)
 
 	// Insert 100 elements.
 	for i := 0; i < 10000; i++ {
